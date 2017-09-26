@@ -36,7 +36,7 @@ class Marker {
         bindAll(['_update', '_onMapClick'], this);
 
         if (!element) element = DOM.create('div');
-        element.classList.add('mapboxgl-marker');
+        element.classList.add('mapcube-marker');
         this._element = element;
 
         this._popup = null;

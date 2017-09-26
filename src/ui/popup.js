@@ -238,10 +238,10 @@ class Popup extends Evented {
             DOM.remove(this._content);
         }
 
-        this._content = DOM.create('div', 'mapboxgl-popup-content', this._container);
+        this._content = DOM.create('div', 'mapcube-popup-content', this._container);
 
         if (this.options.closeButton) {
-            this._closeButton = DOM.create('button', 'mapboxgl-popup-close-button', this._content);
+            this._closeButton = DOM.create('button', 'mapcube-popup-close-button', this._content);
             this._closeButton.type = 'button';
             this._closeButton.setAttribute('aria-label', 'Close popup');
             this._closeButton.innerHTML = '&#215;';
@@ -253,8 +253,8 @@ class Popup extends Evented {
         if (!this._map || !this._lngLat || !this._content) { return; }
 
         if (!this._container) {
-            this._container = DOM.create('div', 'mapboxgl-popup', this._map.getContainer());
-            this._tip       = DOM.create('div', 'mapboxgl-popup-tip', this._container);
+            this._container = DOM.create('div', 'mapcube-popup', this._map.getContainer());
+            this._tip       = DOM.create('div', 'mapcube-popup-tip', this._container);
             this._container.appendChild(this._content);
         }
 
@@ -307,9 +307,9 @@ class Popup extends Evented {
 
         const classList = this._container.classList;
         for (const key in anchorTranslate) {
-            classList.remove(`mapboxgl-popup-anchor-${key}`);
+            classList.remove(`mapcube-popup-anchor-${key}`);
         }
-        classList.add(`mapboxgl-popup-anchor-${anchor}`);
+        classList.add(`mapcube-popup-anchor-${anchor}`);
 
         DOM.setTransform(this._container, `${anchorTranslate[anchor]} translate(${offsetedPos.x}px,${offsetedPos.y}px)`);
     }

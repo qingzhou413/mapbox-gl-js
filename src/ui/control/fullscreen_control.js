@@ -39,13 +39,13 @@ class FullscreenControl {
         } else if ('onmsfullscreenchange' in window.document) {
             this._fullscreenchange = 'MSFullscreenChange';
         }
-        this._className = 'mapboxgl-ctrl';
+        this._className = 'mapcube-ctrl';
     }
 
     onAdd(map: Map) {
         this._map = map;
         this._mapContainer = this._map.getContainer();
-        this._container = DOM.create('div', `${this._className} mapboxgl-ctrl-group`);
+        this._container = DOM.create('div', `${this._className} mapcube-ctrl-group`);
         if (this._checkFullscreenSupport()) {
             this._setupUI();
         } else {

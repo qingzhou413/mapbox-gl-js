@@ -101,8 +101,8 @@ class BoxZoomHandler {
             p1 = DOM.mousePos(this._el, e);
 
         if (!this._box) {
-            this._box = DOM.create('div', 'mapboxgl-boxzoom', this._container);
-            this._container.classList.add('mapboxgl-crosshair');
+            this._box = DOM.create('div', 'mapcube-boxzoom', this._container);
+            this._container.classList.add('mapcube-crosshair');
             this._fireEvent('boxzoomstart', e);
         }
 
@@ -151,7 +151,7 @@ class BoxZoomHandler {
         window.document.removeEventListener('keydown', this._onKeyDown, false);
         window.document.removeEventListener('mouseup', this._onMouseUp, false);
 
-        this._container.classList.remove('mapboxgl-crosshair');
+        this._container.classList.remove('mapcube-crosshair');
 
         if (this._box) {
             DOM.remove(this._box);

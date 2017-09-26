@@ -24,8 +24,8 @@ class LogoControl {
 
     onAdd(map: Map) {
         this._map = map;
-        this._container = DOM.create('div', 'mapboxgl-ctrl');
-        const anchor = DOM.create('a', 'mapboxgl-ctrl-logo');
+        this._container = DOM.create('div', 'mapcube-ctrl');
+        const anchor = DOM.create('a', 'mapcube-ctrl-logo');
         anchor.target = "_blank";
         anchor.href = "https://www.mapbox.com/";
         anchor.setAttribute("aria-label", "Mapbox logo");

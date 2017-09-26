@@ -66,7 +66,7 @@ class DragPanHandler {
      */
     enable() {
         if (this.isEnabled()) return;
-        this._el.classList.add('mapboxgl-touch-drag-pan');
+        this._el.classList.add('mapcube-touch-drag-pan');
         this._el.addEventListener('mousedown', this._onDown);
         this._el.addEventListener('touchstart', this._onDown);
         this._enabled = true;
@@ -80,7 +80,7 @@ class DragPanHandler {
      */
     disable() {
         if (!this.isEnabled()) return;
-        this._el.classList.remove('mapboxgl-touch-drag-pan');
+        this._el.classList.remove('mapcube-touch-drag-pan');
         this._el.removeEventListener('mousedown', this._onDown);
         this._el.removeEventListener('touchstart', this._onDown);
         this._enabled = false;

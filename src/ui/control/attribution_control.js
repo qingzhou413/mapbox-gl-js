@@ -44,10 +44,10 @@ class AttributionControl {
         const compact = this.options && this.options.compact;
 
         this._map = map;
-        this._container = DOM.create('div', 'mapboxgl-ctrl mapboxgl-ctrl-attrib');
+        this._container = DOM.create('div', 'mapcube-ctrl mapcube-ctrl-attrib');
 
         if (compact) {
-            this._container.classList.add('mapboxgl-compact');
+            this._container.classList.add('mapcube-compact');
         }
 
         this._updateAttributions();
@@ -77,7 +77,7 @@ class AttributionControl {
     _updateEditLink() {
         let editLink = this._editLink;
         if (!editLink) {
-            editLink = this._editLink = (this._container.querySelector('.mapbox-improve-map'): any);
+            editLink = this._editLink = (this._container.querySelector('.mapcube-improve-map'): any);
         }
 
         const params = [
@@ -138,9 +138,9 @@ class AttributionControl {
 
     _updateCompact() {
         if (this._map.getCanvasContainer().offsetWidth <= 640) {
-            this._container.classList.add('mapboxgl-compact');
+            this._container.classList.add('mapcube-compact');
         } else {
-            this._container.classList.remove('mapboxgl-compact');
+            this._container.classList.remove('mapcube-compact');
         }
     }
 
