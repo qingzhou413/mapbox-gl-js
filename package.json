@@ -1,5 +1,5 @@
 {
-  "name": "mapbox-gl",
+  "name": "@unimap/mapbox-gl",
   "description": "A WebGL interactive maps library",
   "version": "0.40.1",
   "main": "dist/mapbox-gl.js",
@@ -151,5 +151,14 @@
     "flow-typed/",
     "src/",
     ".flowconfig"
-  ]
+  ],
+  "bugs": {
+    "url": "https://github.com/mapbox/mapbox-gl-js/issues"
+  },
+  "homepage": "https://github.com/mapbox/mapbox-gl-js#readme",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "author": ""
 }
