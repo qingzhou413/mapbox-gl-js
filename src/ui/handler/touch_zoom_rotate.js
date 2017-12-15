@@ -176,11 +176,11 @@ class TouchZoomRotateHandler {
 
             if (this._gestureIntent === 'pitch') {
                 param.pitch = this._startPitch + pitch;
-            }
-            if (this._gestureIntent === 'rotate') {
+            // } else if (this._gestureIntent === 'rotate') {
+            //     param.bearing = this._startBearing + bearing;
+            // }
+            } else if (this._gestureIntent === 'zoom' || this._gestureIntent === 'rotate') {
                 param.bearing = this._startBearing + bearing;
-            }
-            if (this._gestureIntent === 'zoom' || this._gestureIntent === 'rotate') {
                 param.zoom = map.transform.scaleZoom(this._startScale * scale);
             }
 
