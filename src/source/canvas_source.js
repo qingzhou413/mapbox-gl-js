@@ -2,15 +2,19 @@
 
 const ImageSource = require('./image_source');
 const window = require('../util/window');
+const rasterBoundsAttributes = require('../data/raster_bounds_attributes');
+const VertexArrayObject = require('../render/vertex_array_object');
+const Texture = require('../render/texture');
+const {ErrorEvent} = require('../util/evented');
 
 import type Map from '../ui/map';
 import type Dispatcher from '../util/dispatcher';
-import type Evented from '../util/evented';
+import type {Evented} from '../util/evented';
 
 /**
  * A data source containing the contents of an HTML canvas.
  * (See the [Style Specification](https://www.mapbox.com/mapbox-gl-style-spec/#sources-canvas) for detailed documentation of options.)
- * @interface CanvasSource
+ *
  * @example
  * // add to map
  * map.addSource('some id', {
@@ -22,8 +26,7 @@ import type Evented from '../util/evented';
  *        [-76.52, 39.18],
  *        [-76.52, 39.17],
  *        [-76.54, 39.17]
- *    ],
- *    contextType: '2d'
+ *    ]
  * });
  *
  * // update
@@ -41,42 +44,52 @@ class CanvasSource extends ImageSource {
     options: CanvasSourceSpecification;
     animate: boolean;
     canvas: HTMLCanvasElement;
-    context: (CanvasRenderingContext2D | WebGLRenderingContext);
-    secondaryContext: ?CanvasRenderingContext2D;
     width: number;
     height: number;
-    canvasData: ?ImageData;
     play: () => void;
     pause: () => void;
+    _playing: boolean;
 
+    /**
+     * @private
+     */
     constructor(id: string, options: CanvasSourceSpecification, dispatcher: Dispatcher, eventedParent: Evented) {
         super(id, options, dispatcher, eventedParent);
         this.options = options;
         this.animate = options.animate !== undefined ? options.animate : true;
     }
 
+    /**
+     * Enables animation. The image will be copied from the canvas to the map on each frame.
+     * @method play
+     * @instance
+     * @memberof CanvasSource
+     */
+
+    /**
+     * Disables animation. The map will display a static copy of the canvas image.
+     * @method pause
+     * @instance
+     * @memberof CanvasSource
+     */
+
     load() {
         this.canvas = this.canvas || window.document.getElementById(this.options.canvas);
-        const context = this.canvas.getContext(this.options.contextType);
-        if (!context) return this.fire('error', new Error('Canvas context not found.'));
-        this.context = context;
         this.width = this.canvas.width;
         this.height = this.canvas.height;
-        if (this._hasInvalidDimensions()) return this.fire('error', new Error('Canvas dimensions cannot be less than or equal to zero.'));
 
-        let loopID;
+        if (this._hasInvalidDimensions()) {
+            this.fire(new ErrorEvent(new Error('Canvas dimensions cannot be less than or equal to zero.')));
+            return;
+        }
 
         this.play = function() {
-            if (loopID === undefined) {
-                loopID = this.map.style.animationLoop.set(Infinity);
-                this.map._rerender();
-            }
+            this._playing = true;
+            this.map._rerender();
         };
 
         this.pause = function() {
-            if (loopID !== undefined) {
-                loopID = this.map.style.animationLoop.cancel(loopID);
-            }
+            this._playing = false;
         };
 
         this._finishLoading();
@@ -107,6 +120,8 @@ class CanvasSource extends ImageSource {
      * Sets the canvas's coordinates and re-renders the map.
      *
      * @method setCoordinates
+     * @instance
+     * @memberof CanvasSource
      * @param {Array<Array<number>>} coordinates Four geographical coordinates,
      *   represented as arrays of longitude and latitude numbers, which define the corners of the canvas.
      *   The coordinates start at the top left corner of the canvas and proceed in clockwise order.
@@ -114,30 +129,6 @@ class CanvasSource extends ImageSource {
      * @returns {CanvasSource} this
      */
     // setCoordinates inherited from ImageSource
-
-    readCanvas(resize: boolean) {
-        // We *should* be able to use a pure HTMLCanvasElement in
-        // texImage2D/texSubImage2D (in ImageSource#_prepareImage), but for
-        // some reason this breaks the map on certain GPUs (see #4262).
-
-        if (this.context instanceof CanvasRenderingContext2D) {
-            this.canvasData = this.context.getImageData(0, 0, this.width, this.height);
-        } else if (this.context instanceof WebGLRenderingContext) {
-            const gl = this.context;
-            const data = new Uint8Array(this.width * this.height * 4);
-            gl.readPixels(0, 0, this.width, this.height, gl.RGBA, gl.UNSIGNED_BYTE, data);
-
-            if (!this.secondaryContext) this.secondaryContext = window.document.createElement('canvas').getContext('2d');
-            if (!this.canvasData || resize) {
-                this.canvasData = this.secondaryContext.createImageData(this.width, this.height);
-            }
-
-            // WebGL reads pixels bottom to top, but for our ImageData object we need top to bottom: flip here
-            for (let i = this.height - 1, j = 0; i >= 0; i--, j++) {
-                this.canvasData.data.set(data.subarray(i * this.width * 4, (i + 1) * this.width * 4), j * this.width * 4);
-            }
-        }
-    }
 
     prepare() {
         let resize = false;
@@ -149,20 +140,39 @@ class CanvasSource extends ImageSource {
             this.height = this.canvas.height;
             resize = true;
         }
+
         if (this._hasInvalidDimensions()) return;
 
         if (Object.keys(this.tiles).length === 0) return; // not enough data for current position
 
-        const reread = this.animate || !this.canvasData || resize;
-        if (reread) {
-            this.readCanvas(resize);
+        const context = this.map.painter.context;
+        const gl = context.gl;
+
+        if (!this.boundsBuffer) {
+            this.boundsBuffer = context.createVertexBuffer(this._boundsArray, rasterBoundsAttributes.members);
         }
 
-        if (!this.canvasData) {
-            this.fire('error', new Error('Could not read canvas data.'));
-            return;
+        if (!this.boundsVAO) {
+            this.boundsVAO = new VertexArrayObject();
         }
-        this._prepareImage(this.map.painter.gl, this.canvasData, resize);
+
+        if (!this.texture) {
+            this.texture = new Texture(context, this.canvas, gl.RGBA);
+            this.texture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
+        } else if (resize) {
+            this.texture.update(this.canvas);
+        } else if (this._playing) {
+            this.texture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.canvas);
+        }
+
+        for (const w in this.tiles) {
+            const tile = this.tiles[w];
+            if (tile.state !== 'loaded') {
+                tile.state = 'loaded';
+                tile.texture = this.texture;
+            }
+        }
     }
 
     serialize(): Object {
@@ -171,6 +181,10 @@ class CanvasSource extends ImageSource {
             canvas: this.canvas,
             coordinates: this.coordinates
         };
+    }
+
+    hasTransition() {
+        return this._playing;
     }
 
     _hasInvalidDimensions() {

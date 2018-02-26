@@ -1,39 +1,21 @@
+// @flow
 
 const ValidationError = require('../error/validation_error');
-const {findZoomCurve, getExpectedType} = require('../function');
-const compile = require('../function/compile');
-const Curve = require('../function/definitions/curve');
+const {createExpression, createPropertyExpression} = require('../expression');
 const unbundle = require('../util/unbundle_jsonlint');
 
-module.exports = function validateExpression(options) {
-    const expression = deepUnbundle(options.value.expression);
-    const compiled = compile(expression, getExpectedType(options.valueSpec));
-
-    const key = `${options.key}.expression`;
-
-    if (compiled.result === 'success') {
-        if (!options.disallowNestedZoom || compiled.isZoomConstant) {
-            return [];
-        }
-
-        const curve = findZoomCurve(compiled.expression);
-        if (curve instanceof Curve) {
-            return [];
-        } else if (curve) {
-            return [new ValidationError(`${key}${curve.key}`, options.value, curve.error)];
-        } else {
-            return [new ValidationError(`${key}`, options.value, '"zoom" expression may only be used as input to a top-level "curve" expression.')];
-        }
+module.exports = function validateExpression(options: any) {
+    const expression = (options.expressionContext === 'property' ? createPropertyExpression : createExpression)(unbundle.deep(options.value), options.valueSpec);
+    if (expression.result === 'error') {
+        return expression.value.map((error) => {
+            return new ValidationError(`${options.key}${error.key}`, options.value, error.message);
+        });
     }
 
-    return compiled.errors.map((error) => {
-        return new ValidationError(`${key}${error.key}`, options.value, error.message);
-    });
+    if (options.expressionContext === 'property' && options.propertyKey === 'text-font' &&
+        (expression.value: any)._styleExpression.expression.possibleOutputs().indexOf(undefined) !== -1) {
+        return [new ValidationError(options.key, options.value, 'Invalid data expression for "text-font". Output values must be contained as literals within the expression.')];
+    }
+
+    return [];
 };
-
-function deepUnbundle (value) {
-    if (Array.isArray(value)) {
-        return value.map(deepUnbundle);
-    }
-    return unbundle(value);
-}

@@ -1,5 +1,4 @@
 {
-  "expectExpressionType": null,
   "expression": ["coalesce", ["get", "x"], ["get", "y"], ["get", "z"], 0],
   "inputs": [
     [{}, {"properties": {"x": 1}}],
@@ -13,8 +12,9 @@
       "result": "success",
       "isFeatureConstant": false,
       "isZoomConstant": true,
-      "type": "Value"
+      "type": "value"
     },
-    "outputs": [1, 1, 2, 3, 0]
+    "outputs": [1, 1, 2, 3, 0],
+    "serialized": ["coalesce", ["get", "x"], ["get", "y"], ["get", "z"], 0]
   }
 }

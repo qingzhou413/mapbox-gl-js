@@ -1,15 +1,9 @@
 {
-  "expectExpressionType": null,
   "expression": ["==", ["string", ["get", "x"]], ["number", ["get", "y"]]],
   "expected": {
     "compiled": {
       "result": "error",
-      "errors": [
-        {
-          "key": "",
-          "error": "Expected arguments of type (Number, Number) | (String, String) | (Boolean, Boolean) | (Null, Null), but found (String, Number) instead."
-        }
-      ]
+      "errors": [{"key": "", "error": "Cannot compare string and number."}]
     }
   }
 }

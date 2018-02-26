@@ -1,5 +1,9 @@
 {
-  "expectExpressionType": {"kind": "String"},
+  "propertySpec": {
+    "type": "string",
+    "function": true,
+    "property-function": true
+  },
   "expression": ["at", 1, ["literal", [1, 2, 3]]],
   "inputs": [],
   "expected": {
@@ -8,7 +12,7 @@
       "errors": [
         {
           "key": "[2]",
-          "error": "Expected Array<String> but found Array<Number, 3> instead."
+          "error": "Expected array<string> but found array<number, 3> instead."
         }
       ]
     }

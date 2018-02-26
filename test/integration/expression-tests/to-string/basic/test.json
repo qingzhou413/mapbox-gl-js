@@ -1,10 +1,10 @@
 {
-  "expectExpressionType": null,
   "expression": ["to-string", ["get", "x"]],
   "inputs": [
     [{}, {"properties": {"x": 1}}],
     [{}, {"properties": {"x": false}}],
     [{}, {"properties": {"x": null}}],
+    [{}, {"properties": {"x": "string"}}],
     [{}, {"properties": {"x": [1, 2]}}],
     [{}, {"properties": {"x": {"y": 1}}}]
   ],
@@ -13,8 +13,9 @@
       "result": "success",
       "isFeatureConstant": false,
       "isZoomConstant": true,
-      "type": "String"
+      "type": "string"
     },
-    "outputs": ["1", "false", "null", "[1,2]", "{\"y\":1}"]
+    "outputs": ["1", "false", "null", "string", "[1,2]", "{\"y\":1}"],
+    "serialized": ["to-string", ["get", "x"]]
   }
 }

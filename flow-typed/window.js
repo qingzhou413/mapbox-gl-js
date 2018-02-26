@@ -115,12 +115,15 @@ declare interface Window extends EventTarget, IDBEnvironment {
 
     Blob: typeof Blob;
     HTMLImageElement: typeof HTMLImageElement;
+    HTMLElement: typeof HTMLElement;
     HTMLVideoElement: typeof HTMLVideoElement;
+    HTMLCanvasElement: typeof HTMLCanvasElement;
     Image: typeof Image;
     ImageData: typeof ImageData;
     URL: typeof URL;
-    webkitURL: typeof URL;
     URLSearchParams: typeof URLSearchParams;
+    WebGLFramebuffer: typeof WebGLFramebuffer;
+    webkitURL: typeof URL;
     WheelEvent: typeof WheelEvent;
     Worker: typeof Worker;
     XMLHttpRequest: typeof XMLHttpRequest;

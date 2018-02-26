@@ -1,5 +1,4 @@
 {
-  "expectExpressionType": null,
   "expression": ["geometry-type"],
   "inputs": [
     [{}, {"geometry": {"type": "LineString", "coordinates": [[0, 0], [10, 0]]}}]
@@ -9,8 +8,9 @@
       "result": "success",
       "isFeatureConstant": false,
       "isZoomConstant": true,
-      "type": "String"
+      "type": "string"
     },
-    "outputs": ["LineString"]
+    "outputs": ["LineString"],
+    "serialized": ["geometry-type"]
   }
 }

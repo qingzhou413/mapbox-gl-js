@@ -3,6 +3,7 @@
 const DOM = require('../../util/dom');
 const util = require('../../util/util');
 const window = require('../../util/window');
+const browser = require('../../util/browser');
 
 import type Map from '../map';
 import type Point from '@mapbox/point-geometry';
@@ -18,8 +19,6 @@ const inertiaLinearity = 0.15,
 /**
  * The `TouchZoomRotateHandler` allows the user to zoom and rotate the map by
  * pinching on a touchscreen.
- *
- * @param {Map} map The Mapbox GL JS map to add the handler to.
  */
 class TouchZoomRotateHandler {
     _map: Map;
@@ -37,12 +36,14 @@ class TouchZoomRotateHandler {
     _p0: Point;
     _p: Point;
 
+    /**
+     * @private
+     */
     constructor(map: Map) {
         this._map = map;
         this._el = map.getCanvasContainer();
 
         util.bindAll([
-            '_onStart',
             '_onMove',
             '_onEnd'
         ], this);
@@ -71,7 +72,6 @@ class TouchZoomRotateHandler {
     enable(options: any) {
         if (this.isEnabled()) return;
         this._el.classList.add('mapcube-touch-zoom-rotate');
-        this._el.addEventListener('touchstart', this._onStart, false);
         this._enabled = true;
         this._aroundCenter = options && options.around === 'center';
     }
@@ -85,7 +85,6 @@ class TouchZoomRotateHandler {
     disable() {
         if (!this.isEnabled()) return;
         this._el.classList.remove('mapcube-touch-zoom-rotate');
-        this._el.removeEventListener('touchstart', this._onStart);
         this._enabled = false;
     }
 
@@ -119,7 +118,8 @@ class TouchZoomRotateHandler {
         this._rotationDisabled = false;
     }
 
-    _onStart(e: TouchEvent) {
+    onStart(e: TouchEvent) {
+        if (!this.isEnabled()) return;
         if (e.touches.length !== 2) return;
 
         const p0 = this._p0 = DOM.mousePos(this._el, e.touches[0]),
@@ -186,7 +186,7 @@ class TouchZoomRotateHandler {
 
             map.stop();
             this._drainInertiaBuffer();
-            this._inertia.push([Date.now(), scale, p]);
+            this._inertia.push([browser.now(), scale, p]);
 
             map.easeTo(param, { originalEvent: e });
         }
@@ -247,7 +247,7 @@ class TouchZoomRotateHandler {
 
     _drainInertiaBuffer() {
         const inertia = this._inertia,
-            now = Date.now(),
+            now = browser.now(),
             cutoff = 160; // msec
 
         while (inertia.length > 2 && now - inertia[0][0] > cutoff) inertia.shift();

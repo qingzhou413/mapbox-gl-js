@@ -1,5 +1,10 @@
 {
-  "expectExpressionType": {"kind": "Array", "itemType": {"kind": "String"}},
+  "propertySpec": {
+    "type": "array",
+    "value": "string",
+    "function": true,
+    "property-function": true
+  },
   "expression": ["array", "string", 2, ["get", "x"]],
   "inputs": [],
   "expected": {
@@ -7,8 +12,9 @@
       "result": "success",
       "isFeatureConstant": false,
       "isZoomConstant": true,
-      "type": "Array<String, 2>"
+      "type": "array<string, 2>"
     },
-    "outputs": []
+    "outputs": [],
+    "serialized": ["array", "string", 2, ["get", "x"]]
   }
 }

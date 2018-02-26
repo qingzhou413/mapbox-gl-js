@@ -2,7 +2,7 @@
 
 const test = require('mapbox-gl-js-test').test;
 const ImageSource = require('../../../src/source/image_source');
-const Evented = require('../../../src/util/evented');
+const {Evented} = require('../../../src/util/evented');
 const Transform = require('../../../src/geo/transform');
 const util = require('../../../src/util/util');
 const ajax = require('../../../src/util/ajax');
@@ -66,7 +66,7 @@ test('ImageSource', (t) => {
         const source = createSource({ url : '/image.png' });
         source.on('data', (e) => {
             if (e.dataType === 'source' && e.sourceDataType === 'content') {
-                t.ok(typeof source.coord == 'object');
+                t.ok(typeof source.tileID == 'object');
                 t.end();
             }
         });

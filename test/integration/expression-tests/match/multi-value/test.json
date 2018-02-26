@@ -1,5 +1,4 @@
 {
-  "expectExpressionType": null,
   "expression": [
     "string",
     [
@@ -24,8 +23,20 @@
       "result": "success",
       "isFeatureConstant": false,
       "isZoomConstant": true,
-      "type": "String"
+      "type": "string"
     },
-    "outputs": ["Apple", "Apple", "Banana", "Banana", "Kumquat"]
+    "outputs": ["Apple", "Apple", "Banana", "Banana", "Kumquat"],
+    "serialized": [
+      "string",
+      [
+        "match",
+        ["string", ["get", "x"]],
+        ["A", "a"],
+        "Apple",
+        ["B", "b"],
+        "Banana",
+        "Kumquat"
+      ]
+    ]
   }
 }

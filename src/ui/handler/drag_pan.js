@@ -3,9 +3,12 @@
 const DOM = require('../../util/dom');
 const util = require('../../util/util');
 const window = require('../../util/window');
+const browser = require('../../util/browser');
+const {Event} = require('../../util/evented');
 
 import type Map from '../map';
 import type Point from '@mapbox/point-geometry';
+import type Transform from '../../geo/transform';
 
 const inertiaLinearity = 0.3,
     inertiaEasing = util.bezier(0, 0, inertiaLinearity, 1),
@@ -15,8 +18,6 @@ const inertiaLinearity = 0.3,
 /**
  * The `DragPanHandler` allows the user to pan the map by clicking and dragging
  * the cursor.
- *
- * @param {Map} map The Mapbox GL JS map to add the handler to.
  */
 class DragPanHandler {
     _map: Map;
@@ -24,19 +25,21 @@ class DragPanHandler {
     _enabled: boolean;
     _active: boolean;
     _pos: Point;
-    _startPos: Point;
+    _previousPos: Point;
     _inertia: Array<[number, Point]>;
+    _lastMoveEvent: MouseEvent | TouchEvent | void;
 
+    /**
+     * @private
+     */
     constructor(map: Map) {
         this._map = map;
         this._el = map.getCanvasContainer();
 
         util.bindAll([
-            '_onDown',
             '_onMove',
             '_onUp',
-            '_onTouchEnd',
-            '_onMouseUp'
+            '_onDragFrame'
         ], this);
     }
 
@@ -67,8 +70,6 @@ class DragPanHandler {
     enable() {
         if (this.isEnabled()) return;
         this._el.classList.add('mapcube-touch-drag-pan');
-        this._el.addEventListener('mousedown', this._onDown);
-        this._el.addEventListener('touchstart', this._onDown);
         this._enabled = true;
     }
 
@@ -81,66 +82,100 @@ class DragPanHandler {
     disable() {
         if (!this.isEnabled()) return;
         this._el.classList.remove('mapcube-touch-drag-pan');
-        this._el.removeEventListener('mousedown', this._onDown);
-        this._el.removeEventListener('touchstart', this._onDown);
         this._enabled = false;
     }
 
-    _onDown(e: MouseEvent | TouchEvent) {
-        if (this._ignoreEvent(e)) return;
+    onDown(e: MouseEvent | TouchEvent) {
+        if (!this.isEnabled()) return;
+        if (this._map.boxZoom.isActive()) return;
+        if (this._map.dragRotate.isActive()) return;
         if (this.isActive()) return;
 
+        // Bind window-level event listeners for move and up/end events. In the absence of
+        // the pointer capture API, which is not supported by all necessary platforms,
+        // window-level event listeners give us the best shot at capturing events that
+        // fall outside the map canvas element. Use `{capture: true}` for the move event
+        // to prevent map move events from being fired during a drag.
         if (e.touches) {
-            window.document.addEventListener('touchmove', this._onMove);
-            window.document.addEventListener('touchend', this._onTouchEnd);
+            if ((e.touches: any).length > 1) return;
+            window.document.addEventListener('touchmove', this._onMove, {capture: true});
+            window.document.addEventListener('touchend', this._onUp);
         } else {
-            window.document.addEventListener('mousemove', this._onMove);
-            window.document.addEventListener('mouseup', this._onMouseUp);
+            if (e.ctrlKey || DOM.mouseButton((e: any)) !== 0) return;
+            window.document.addEventListener('mousemove', this._onMove, {capture: true});
+            window.document.addEventListener('mouseup', this._onUp);
         }
-        /* Deactivate DragPan when the window looses focus. Otherwise if a mouseup occurs when the window isn't in focus, DragPan will still be active even though the mouse is no longer pressed. */
-        window.addEventListener('blur', this._onMouseUp);
+
+        // Deactivate when the window loses focus. Otherwise if a mouseup occurs when the window
+        // isn't in focus, dragging will continue even though the mouse is no longer pressed.
+        window.addEventListener('blur', this._onUp);
 
         this._active = false;
-        this._startPos = this._pos = DOM.mousePos(this._el, e);
-        this._inertia = [[Date.now(), this._pos]];
+        this._previousPos = DOM.mousePos(this._el, e);
+        this._inertia = [[browser.now(), this._previousPos]];
     }
 
     _onMove(e: MouseEvent | TouchEvent) {
-        if (this._ignoreEvent(e)) return;
+        this._lastMoveEvent = e;
+        e.preventDefault();
+
+        this._pos = DOM.mousePos(this._el, e);
+        this._drainInertiaBuffer();
+        this._inertia.push([browser.now(), this._pos]);
 
         if (!this.isActive()) {
+            // we treat the first move event (rather than the mousedown event)
+            // as the start of the drag
             this._active = true;
-            this._map.moving = true;
             this._fireEvent('dragstart', e);
             this._fireEvent('movestart', e);
         }
 
-        const pos = DOM.mousePos(this._el, e),
-            map = this._map;
+        this._map._startAnimation(this._onDragFrame);
+    }
 
-        map.stop();
-        this._drainInertiaBuffer();
-        this._inertia.push([Date.now(), pos]);
+    /**
+     * Called in each render frame while dragging is happening.
+     * @private
+     */
+    _onDragFrame(tr: Transform) {
+        const e = this._lastMoveEvent;
+        if (!e) return;
 
-        map.transform.setLocationAtPoint(map.transform.pointLocation(this._pos), pos);
-
+        tr.setLocationAtPoint(tr.pointLocation(this._previousPos), this._pos);
         this._fireEvent('drag', e);
         this._fireEvent('move', e);
 
-        this._pos = pos;
-
-        e.preventDefault();
+        this._previousPos = this._pos;
+        delete this._lastMoveEvent;
     }
 
+    /**
+     * Called when dragging stops.
+     * @private
+     */
     _onUp(e: MouseEvent | TouchEvent | FocusEvent) {
+        if (e.type === 'mouseup' && DOM.mouseButton((e: any)) !== 0) return;
+
+        window.document.removeEventListener('touchmove', this._onMove, {capture: true});
+        window.document.removeEventListener('touchend', this._onUp);
+        window.document.removeEventListener('mousemove', this._onMove, {capture: true});
+        window.document.removeEventListener('mouseup', this._onUp);
+        window.removeEventListener('blur', this._onUp);
+
         if (!this.isActive()) return;
 
         this._active = false;
+        delete this._lastMoveEvent;
+        delete this._previousPos;
+        delete this._pos;
+
+        DOM.suppressClick();
+
         this._fireEvent('dragend', e);
         this._drainInertiaBuffer();
 
         const finish = () => {
-            this._map.moving = false;
             this._fireEvent('moveend', e);
         };
 
@@ -179,41 +214,13 @@ class DragPanHandler {
         }, { originalEvent: e });
     }
 
-    _onMouseUp(e: MouseEvent | FocusEvent) {
-        if (this._ignoreEvent(e)) return;
-        this._onUp(e);
-        window.document.removeEventListener('mousemove', this._onMove);
-        window.document.removeEventListener('mouseup', this._onMouseUp);
-        window.removeEventListener('blur', this._onMouseUp);
-    }
-
-    _onTouchEnd(e: TouchEvent) {
-        if (this._ignoreEvent(e)) return;
-        this._onUp(e);
-        window.document.removeEventListener('touchmove', this._onMove);
-        window.document.removeEventListener('touchend', this._onTouchEnd);
-    }
-
-    _fireEvent(type: string, e: Event) {
-        return this._map.fire(type, { originalEvent: e });
-    }
-
-    _ignoreEvent(e: any) {
-        const map = this._map;
-
-        if (map.boxZoom && map.boxZoom.isActive()) return true;
-        if (map.dragRotate && map.dragRotate.isActive()) return true;
-        if (e.touches) {
-            return (e.touches.length > 1);
-        } else {
-            if (e.ctrlKey) return true;
-            return e.type !== 'mousemove' && e.button && e.button !== 0; // left button
-        }
+    _fireEvent(type: string, e: *) {
+        return this._map.fire(new Event(type, e ? { originalEvent: e } : {}));
     }
 
     _drainInertiaBuffer() {
         const inertia = this._inertia,
-            now = Date.now(),
+            now = browser.now(),
             cutoff = 160;   // msec
 
         while (inertia.length > 0 && now - inertia[0][0] > cutoff) inertia.shift();

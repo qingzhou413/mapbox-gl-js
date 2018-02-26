@@ -5,17 +5,9 @@ const validate = require('./validate');
 const validateObject = require('./validate_object');
 const validateArray = require('./validate_array');
 const validateNumber = require('./validate_number');
-const validateExpression = require('./validate_expression');
 const unbundle = require('../util/unbundle_jsonlint');
-const extend = require('../util/extend');
 
 module.exports = function validateFunction(options) {
-    if (options.value.expression) {
-        return validateExpression(extend({}, options, {
-            disallowNestedZoom: true
-        }));
-    }
-
     const functionValueSpec = options.valueSpec;
     const functionType = unbundle(options.value.type);
     let stopKeyType;
@@ -57,7 +49,7 @@ module.exports = function validateFunction(options) {
     if (options.styleSpec.$version >= 8) {
         if (isPropertyFunction && !options.valueSpec['property-function']) {
             errors.push(new ValidationError(options.key, options.value, 'property functions not supported'));
-        } else if (isZoomFunction && !options.valueSpec['zoom-function']) {
+        } else if (isZoomFunction && !options.valueSpec['zoom-function'] && options.objectKey !== 'heatmap-color') {
             errors.push(new ValidationError(options.key, options.value, 'zoom functions not supported'));
         }
     }
@@ -98,16 +90,16 @@ module.exports = function validateFunction(options) {
         const key = options.key;
 
         if (getType(value) !== 'array') {
-            return [new ValidationError(key, value, 'array expected, %s found', getType(value))];
+            return [new ValidationError(key, value, `array expected, ${getType(value)} found`)];
         }
 
         if (value.length !== 2) {
-            return [new ValidationError(key, value, 'array length %d expected, length %d found', 2, value.length)];
+            return [new ValidationError(key, value, `array length 2 expected, length ${value.length} found`)];
         }
 
         if (isZoomAndPropertyFunction) {
             if (getType(value[0]) !== 'object') {
-                return [new ValidationError(key, value, 'object expected, %s found', getType(value[0]))];
+                return [new ValidationError(key, value, `object expected, ${getType(value[0])} found`)];
             }
             if (value[0].zoom === undefined) {
                 return [new ValidationError(key, value, 'object stop key must have zoom')];
@@ -159,7 +151,7 @@ module.exports = function validateFunction(options) {
         if (!stopKeyType) {
             stopKeyType = type;
         } else if (type !== stopKeyType) {
-            return [new ValidationError(options.key, reportValue, '%s stop domain type must match previous stop domain type %s', type, stopKeyType)];
+            return [new ValidationError(options.key, reportValue, `${type} stop domain type must match previous stop domain type ${stopKeyType}`)];
         }
 
         if (type !== 'number' && type !== 'string' && type !== 'boolean') {
@@ -167,15 +159,15 @@ module.exports = function validateFunction(options) {
         }
 
         if (type !== 'number' && functionType !== 'categorical') {
-            let message = 'number expected, %s found';
+            let message = `number expected, ${type} found`;
             if (functionValueSpec['property-function'] && functionType === undefined) {
                 message += '\nIf you intended to use a categorical function, specify `"type": "categorical"`.';
             }
-            return [new ValidationError(options.key, reportValue, message, type)];
+            return [new ValidationError(options.key, reportValue, message)];
         }
 
         if (functionType === 'categorical' && type === 'number' && (!isFinite(value) || Math.floor(value) !== value)) {
-            return [new ValidationError(options.key, reportValue, 'integer expected, found %s', value)];
+            return [new ValidationError(options.key, reportValue, `integer expected, found ${value}`)];
         }
 
         if (functionType !== 'categorical' && type === 'number' && previousStopDomainValue !== undefined && value < previousStopDomainValue) {

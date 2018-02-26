@@ -3,16 +3,16 @@
 const util = require('../util/util');
 
 import type Dispatcher from '../util/dispatcher';
-import type Evented from '../util/evented';
+import type {Event, Evented} from '../util/evented';
 import type Map from '../ui/map';
 import type Tile from './tile';
-import type TileCoord from './tile_coord';
+import type {OverscaledTileID} from './tile_id';
+import type {Callback} from '../types/callback';
 
 /**
  * The `Source` interface must be implemented by each source type, including "core" types (`vector`, `raster`,
  * `video`, etc.) and all custom, third-party types.
  *
- * @class Source
  * @private
  *
  * @param {string} id The id for the source. Must not be used by any existing source.
@@ -37,8 +37,11 @@ export interface Source {
     /**
      * An optional URL to a script which, when run by a Worker, registers a {@link WorkerSource}
      * implementation for this Source type by calling `self.registerWorkerSource(workerSource: WorkerSource)`.
+     * @private
      */
-    static workerSourceURL?: URL;
+    // Static interface properties are not supported in flow as of 0.62.0.
+    // https://github.com/facebook/flow/issues/5590
+    // static workerSourceURL?: URL;
 
     +type: string;
     id: string;
@@ -51,31 +54,33 @@ export interface Source {
     reparseOverscaled?: boolean,
     vectorLayerIds?: Array<string>,
 
-    constructor(id: string, source: SourceSpecification, dispatcher: Dispatcher, eventedParent: Evented): Source;
+    hasTransition(): boolean;
 
-    fire(type: string, data: Object): mixed;
+    fire(event: Event): mixed;
 
     +onAdd?: (map: Map) => void;
     +onRemove?: (map: Map) => void;
 
     loadTile(tile: Tile, callback: Callback<void>): void;
-    +hasTile?: (coord: TileCoord) => boolean;
-    +abortTile?: (tile: Tile) => void;
-    +unloadTile?: (tile: Tile) => void;
+    +hasTile?: (tileID: OverscaledTileID) => boolean;
+    +abortTile?: (tile: Tile, callback: Callback<void>) => void;
+    +unloadTile?: (tile: Tile, callback: Callback<void>) => void;
 
     /**
      * @returns A plain (stringifiable) JS object representing the current state of the source.
      * Creating a source using the returned object as the `options` should result in a Source that is
      * equivalent to this one.
+     * @private
      */
     serialize(): Object;
 
     +prepare?: () => void;
 }
 
-const sourceTypes: {[string]: Class<Source>} = {
+const sourceTypes = {
     'vector': require('../source/vector_tile_source'),
     'raster': require('../source/raster_tile_source'),
+    'raster-dem': require('../source/raster_dem_tile_source'),
     'geojson': require('../source/geojson_source'),
     'video': require('../source/video_source'),
     'image': require('../source/image_source'),
@@ -93,7 +98,7 @@ const sourceTypes: {[string]: Class<Source>} = {
  * @returns {Source}
  */
 exports.create = function(id: string, specification: SourceSpecification, dispatcher: Dispatcher, eventedParent: Evented) {
-    const source = new sourceTypes[specification.type](id, specification, dispatcher, eventedParent);
+    const source = new sourceTypes[specification.type](id, (specification: any), dispatcher, eventedParent);
 
     if (source.id !== id) {
         throw new Error(`Expected Source id to be ${id} instead of ${source.id}`);

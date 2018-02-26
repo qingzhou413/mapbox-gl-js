@@ -6,7 +6,8 @@ const window = require('../../../src/util/window');
 const Map = require('../../../src/ui/map');
 const LngLat = require('../../../src/geo/lng_lat');
 const Tile = require('../../../src/source/tile');
-const TileCoord = require('../../../src/source/tile_coord');
+const OverscaledTileID = require('../../../src/source/tile_id').OverscaledTileID;
+const {Event, ErrorEvent} = require('../../../src/util/evented');
 
 const fixed = require('mapbox-gl-js-test/fixed');
 const fixedNum = fixed.Num;
@@ -117,7 +118,7 @@ test('Map', (t) => {
     });
 
     t.test('emits load event after a style is set', (t) => {
-        const map = createMap();
+        const map = new Map({ container: window.document.createElement('div') });
 
         map.on('load', fail);
 
@@ -133,13 +134,12 @@ test('Map', (t) => {
 
     t.test('#setStyle', (t) => {
         t.test('returns self', (t) => {
-            const map = createMap(),
-                style = {
-                    version: 8,
-                    sources: {},
-                    layers: []
-                };
-            t.equal(map.setStyle(style), map);
+            const map = new Map({ container: window.document.createElement('div') });
+            t.equal(map.setStyle({
+                version: 8,
+                sources: {},
+                layers: []
+            }), map);
             t.end();
         });
 
@@ -154,9 +154,9 @@ test('Map', (t) => {
                 map.on('data', recordEvent);
                 map.on('dataloading', recordEvent);
 
-                map.style.fire('error');
-                map.style.fire('data');
-                map.style.fire('dataloading');
+                map.style.fire(new Event('error'));
+                map.style.fire(new Event('data'));
+                map.style.fire(new Event('dataloading'));
 
                 t.deepEqual(events, [
                     'error',
@@ -182,12 +182,12 @@ test('Map', (t) => {
                 map.on('tiledata', recordEvent);
                 map.on('tiledataloading', recordEvent);
 
-                map.style.fire('data', {dataType: 'style'});
-                map.style.fire('dataloading', {dataType: 'style'});
-                map.style.fire('data', {dataType: 'source'});
-                map.style.fire('dataloading', {dataType: 'source'});
-                map.style.fire('data', {dataType: 'tile'});
-                map.style.fire('dataloading', {dataType: 'tile'});
+                map.style.fire(new Event('data', {dataType: 'style'}));
+                map.style.fire(new Event('dataloading', {dataType: 'style'}));
+                map.style.fire(new Event('data', {dataType: 'source'}));
+                map.style.fire(new Event('dataloading', {dataType: 'source'}));
+                map.style.fire(new Event('data', {dataType: 'tile'}));
+                map.style.fire(new Event('dataloading', {dataType: 'tile'}));
 
                 t.deepEqual(events, [
                     'styledata',
@@ -205,14 +205,14 @@ test('Map', (t) => {
         t.test('can be called more than once', (t) => {
             const map = createMap();
 
-            map.setStyle({version: 8, sources: {}, layers: []});
-            map.setStyle({version: 8, sources: {}, layers: []});
+            map.setStyle({version: 8, sources: {}, layers: []}, {diff: false});
+            map.setStyle({version: 8, sources: {}, layers: []}, {diff: false});
 
             t.end();
         });
 
         t.test('style transform overrides unmodified map transform', (t) => {
-            const map = createMap();
+            const map = new Map({container: window.document.createElement('div')});
             map.transform.lngRange = [-120, 140];
             map.transform.latRange = [-60, 80];
             map.transform.resize(600, 400);
@@ -229,7 +229,7 @@ test('Map', (t) => {
         });
 
         t.test('style transform does not override map transform modified via options', (t) => {
-            const map = createMap({zoom: 10, center: [-77.0186, 38.8888]});
+            const map = new Map({container: window.document.createElement('div'), zoom: 10, center: [-77.0186, 38.8888]});
             t.notOk(map.transform.unmodified, 'map transform is modified by options');
             map.setStyle(createStyle());
             map.on('style.load', () => {
@@ -242,7 +242,7 @@ test('Map', (t) => {
         });
 
         t.test('style transform does not override map transform modified via setters', (t) => {
-            const map = createMap();
+            const map = new Map({container: window.document.createElement('div')});
             t.ok(map.transform.unmodified);
             map.setZoom(10);
             map.setCenter([-77.0186, 38.8888]);
@@ -306,7 +306,7 @@ test('Map', (t) => {
             map.on('load', ()=>{
 
                 map.addSource('geojson', createStyleSource());
-                map.style.sourceCaches.geojson._tiles.fakeTile = new Tile(new TileCoord(0, 0, 0));
+                map.style.sourceCaches.geojson._tiles.fakeTile = new Tile(new OverscaledTileID(0, 0, 0, 0, 0));
                 t.equal(map.areTilesLoaded(), false, 'returns false if tiles are loading');
                 map.style.sourceCaches.geojson._tiles.fakeTile.state = 'loaded';
                 t.equal(map.areTilesLoaded(), true, 'returns true if tiles are loaded');
@@ -397,6 +397,7 @@ test('Map', (t) => {
             t.stub(map.style, 'setState').callsFake(() => {
                 throw new Error('Dummy error');
             });
+            t.stub(console, 'warn');
 
             const previousStyle = map.style;
             map.setStyle(style);
@@ -665,6 +666,54 @@ test('Map', (t) => {
         t.end();
     });
 
+    t.test('#getRenderWorldCopies', (t) => {
+        t.test('initially false', (t) => {
+            const map = createMap({renderWorldCopies: false});
+            t.equal(map.getRenderWorldCopies(), false);
+            t.end();
+        });
+
+        t.test('initially true', (t) => {
+            const map = createMap({renderWorldCopies: true});
+            t.equal(map.getRenderWorldCopies(), true);
+            t.end();
+        });
+
+        t.end();
+    });
+
+    t.test('#setRenderWorldCopies', (t) => {
+        t.test('initially false', (t) => {
+            const map = createMap({renderWorldCopies: false});
+            map.setRenderWorldCopies(true);
+            t.equal(map.getRenderWorldCopies(), true);
+            t.end();
+        });
+
+        t.test('initially true', (t) => {
+            const map = createMap({renderWorldCopies: true});
+            map.setRenderWorldCopies(false);
+            t.equal(map.getRenderWorldCopies(), false);
+            t.end();
+        });
+
+        t.test('undefined', (t) => {
+            const map = createMap({renderWorldCopies: false});
+            map.setRenderWorldCopies(undefined);
+            t.equal(map.getRenderWorldCopies(), true);
+            t.end();
+        });
+
+        t.test('null', (t) => {
+            const map = createMap({renderWorldCopies: true});
+            map.setRenderWorldCopies(null);
+            t.equal(map.getRenderWorldCopies(), false);
+            t.end();
+        });
+
+        t.end();
+    });
+
     t.test('#setMinZoom', (t) => {
         const map = createMap({zoom:5});
         map.setMinZoom(3.5);
@@ -749,7 +798,7 @@ test('Map', (t) => {
 
     t.test('#remove', (t) => {
         const map = createMap();
-        t.equal(map.getContainer().childNodes.length, 2);
+        t.equal(map.getContainer().childNodes.length, 3);
         map.remove();
         t.equal(map.getContainer().childNodes.length, 0);
         t.end();
@@ -780,39 +829,6 @@ test('Map', (t) => {
         };
         map.addControl(control);
         map.removeControl(control);
-    });
-
-    t.test('#addClass', (t) => {
-        const map = createMap();
-        map.addClass('night');
-        t.ok(map.hasClass('night'));
-        t.end();
-    });
-
-    t.test('#removeClass', (t) => {
-        const map = createMap();
-        map.addClass('night');
-        map.removeClass('night');
-        t.ok(!map.hasClass('night'));
-        t.end();
-    });
-
-    t.test('#setClasses', (t) => {
-        const map = createMap();
-        map.addClass('night');
-        map.setClasses([]);
-        t.ok(!map.hasClass('night'));
-
-        map.setClasses(['night']);
-        t.ok(map.hasClass('night'));
-        t.end();
-    });
-
-    t.test('#getClasses', (t) => {
-        const map = createMap();
-        map.addClass('night');
-        t.deepEqual(map.getClasses(), ['night']);
-        t.end();
     });
 
     t.test('#project', (t) => {
@@ -952,7 +968,7 @@ test('Map', (t) => {
                 };
 
                 map.setLayoutProperty('symbol', 'text-transform', 'lowercase');
-                map.style.update();
+                map.style.update({});
                 t.deepEqual(map.getLayoutProperty('symbol', 'text-transform'), 'lowercase');
                 t.end();
             });
@@ -984,7 +1000,7 @@ test('Map', (t) => {
             });
 
             map.on('style.load', () => {
-                map.style.on('error', ({ error }) => {
+                map.on('error', ({ error }) => {
                     t.match(error.message, /does not exist in the map\'s style and cannot be styled/);
                     t.end();
                 });
@@ -1190,7 +1206,7 @@ test('Map', (t) => {
             });
 
             map.on('style.load', () => {
-                map.style.on('error', ({ error }) => {
+                map.on('error', ({ error }) => {
                     t.match(error.message, /does not exist in the map\'s style and cannot be styled/);
                     t.end();
                 });
@@ -1203,35 +1219,23 @@ test('Map', (t) => {
 
     t.test('error event', (t) => {
         t.test('logs errors to console when it has NO listeners', (t) => {
-            const map = createMap({ style: { version: 8, sources: {}, layers: [] } });
-
-            t.spy(map, 'fire');
-            t.stub(console, 'error').callsFake((error) => {
-                if (error.message === 'version: expected one of [8], 7 found') {
-                    t.notOk(map.fire.calledWith('error'));
-                    console.error.restore();
-                    map.fire.restore();
-                    t.end();
-                } else {
-                    console.log(error);
-                }
-            });
-
-            map.setStyle({ version: 7, sources: {}, layers: [] });
+            const map = createMap();
+            const stub = t.stub(console, 'error');
+            const error = new Error('test');
+            map.fire(new ErrorEvent(error));
+            t.ok(stub.calledOnce);
+            t.equal(stub.getCall(0).args[0], error);
+            t.end();
         });
 
         t.test('calls listeners', (t) => {
-            const map = createMap({ style: { version: 8, sources: {}, layers: [] } });
-
-            t.spy(console, 'error');
+            const map = createMap();
+            const error = new Error('test');
             map.on('error', (event) => {
-                t.equal(event.error.message, 'version: expected one of [8], 7 found');
-                t.notOk(console.error.calledWith('version: expected one of [8], 7 found'));
-                console.error.restore();
+                t.equal(event.error, error);
                 t.end();
             });
-
-            map.setStyle({ version: 7, sources: {}, layers: [] });
+            map.fire(new ErrorEvent(error));
         });
 
         t.end();
@@ -1294,23 +1298,6 @@ test('Map', (t) => {
                 }
             });
         });
-    });
-
-    t.test('Map#isMoving', (t) => {
-        t.plan(3);
-        const map = createMap();
-
-        t.equal(map.isMoving(), false, 'false before moving');
-
-        map.on('movestart', () => {
-            t.equal(map.isMoving(), true, 'true on movestart');
-        });
-
-        map.on('moveend', () => {
-            t.equal(map.isMoving(), false, 'false on moveend');
-        });
-
-        map.zoomTo(5, { duration: 0 });
     });
 
     t.end();

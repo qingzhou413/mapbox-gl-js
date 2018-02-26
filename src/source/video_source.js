@@ -2,15 +2,19 @@
 
 const ajax = require('../util/ajax');
 const ImageSource = require('./image_source');
+const rasterBoundsAttributes = require('../data/raster_bounds_attributes');
+const VertexArrayObject = require('../render/vertex_array_object');
+const Texture = require('../render/texture');
+const {ErrorEvent} = require('../util/evented');
 
 import type Map from '../ui/map';
 import type Dispatcher from '../util/dispatcher';
-import type Evented from '../util/evented';
+import type {Evented} from '../util/evented';
 
 /**
  * A data source containing video.
  * (See the [Style Specification](https://www.mapbox.com/mapbox-gl-style-spec/#sources-video) for detailed documentation of options.)
- * @interface VideoSource
+ *
  * @example
  * // add to map
  * map.addSource('some id', {
@@ -45,6 +49,9 @@ class VideoSource extends ImageSource {
     video: HTMLVideoElement;
     roundZoom: boolean;
 
+    /**
+     * @private
+     */
     constructor(id: string, options: VideoSourceSpecification, dispatcher: Dispatcher, eventedParent: Evented) {
         super(id, options, dispatcher, eventedParent);
         this.roundZoom = true;
@@ -58,22 +65,15 @@ class VideoSource extends ImageSource {
 
         ajax.getVideo(options.urls, (err, video) => {
             if (err) {
-                this.fire('error', {error: err});
+                this.fire(new ErrorEvent(err));
             } else if (video) {
                 this.video = video;
                 this.video.loop = true;
 
-                let loopID;
-
-                // start repainting when video starts playing
+                // Start repainting when video starts playing. hasTransition() will then return
+                // true to trigger additional frames as long as the videos continues playing.
                 this.video.addEventListener('playing', () => {
-                    loopID = this.map.style.animationLoop.set(Infinity);
                     this.map._rerender();
-                });
-
-                // stop repainting when video stops
-                this.video.addEventListener('pause', () => {
-                    this.map.style.animationLoop.cancel(loopID);
                 });
 
                 if (this.map) {
@@ -108,6 +108,8 @@ class VideoSource extends ImageSource {
      * Sets the video's coordinates and re-renders the map.
      *
      * @method setCoordinates
+     * @instance
+     * @memberof VideoSource
      * @param {Array<Array<number>>} coordinates Four geographical coordinates,
      *   represented as arrays of longitude and latitude numbers, which define the corners of the video.
      *   The coordinates start at the top left corner of the video and proceed in clockwise order.
@@ -117,8 +119,36 @@ class VideoSource extends ImageSource {
     // setCoordinates inherited from ImageSource
 
     prepare() {
-        if (Object.keys(this.tiles).length === 0 || this.video.readyState < 2) return; // not enough data for current position
-        this._prepareImage(this.map.painter.gl, this.video);
+        if (Object.keys(this.tiles).length === 0 || this.video.readyState < 2) {
+            return; // not enough data for current position
+        }
+
+        const context = this.map.painter.context;
+        const gl = context.gl;
+
+        if (!this.boundsBuffer) {
+            this.boundsBuffer = context.createVertexBuffer(this._boundsArray, rasterBoundsAttributes.members);
+        }
+
+        if (!this.boundsVAO) {
+            this.boundsVAO = new VertexArrayObject();
+        }
+
+        if (!this.texture) {
+            this.texture = new Texture(context, this.video, gl.RGBA);
+            this.texture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
+        } else if (!this.video.paused) {
+            this.texture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.video);
+        }
+
+        for (const w in this.tiles) {
+            const tile = this.tiles[w];
+            if (tile.state !== 'loaded') {
+                tile.state = 'loaded';
+                tile.texture = this.texture;
+            }
+        }
     }
 
     serialize() {
@@ -127,6 +157,10 @@ class VideoSource extends ImageSource {
             urls: this.urls,
             coordinates: this.coordinates
         };
+    }
+
+    hasTransition() {
+        return this.video && !this.video.paused;
     }
 }
 

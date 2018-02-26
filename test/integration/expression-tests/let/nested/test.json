@@ -1,5 +1,4 @@
 {
-  "expectExpressionType": null,
   "expression": [
     "let",
     "a",
@@ -12,8 +11,14 @@
       "result": "success",
       "isFeatureConstant": true,
       "isZoomConstant": true,
-      "type": "Number"
+      "type": "number"
     },
-    "outputs": [3]
+    "outputs": [3],
+    "serialized": [
+      "let",
+      "a",
+      1,
+      ["let", "b", ["+", 1, ["var", "a"]], ["+", ["var", "a"], ["var", "b"]]]
+    ]
   }
 }

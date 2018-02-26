@@ -2,11 +2,17 @@
 
 const Point = require('@mapbox/point-geometry');
 const window = require('./window');
+const assert = require('assert');
 
 exports.create = function (tagName: *, className?: string, container?: HTMLElement) {
     const el = window.document.createElement(tagName);
     if (className) el.className = className;
     if (container) container.appendChild(el);
+    return el;
+};
+
+exports.createNS = function (namespaceURI: string, tagName: string) {
+    const el = window.document.createElementNS(namespaceURI, tagName);
     return el;
 };
 
@@ -74,6 +80,18 @@ exports.touchPos = function (el: HTMLElement, e: any) {
         ));
     }
     return points;
+};
+
+exports.mouseButton = function (e: MouseEvent) {
+    assert(e.type === 'mousedown' || e.type === 'mouseup');
+    if (typeof window.InstallTrigger !== 'undefined' && e.button === 2 && e.ctrlKey &&
+        window.navigator.platform.toUpperCase().indexOf('MAC') >= 0) {
+        // Fix for https://github.com/mapbox/mapbox-gl-js/issues/3131:
+        // Firefox (detected by InstallTrigger) on Mac determines e.button = 2 when
+        // using Control + left click
+        return 0;
+    }
+    return e.button;
 };
 
 exports.remove = function(node: HTMLElement) {

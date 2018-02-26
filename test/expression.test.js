@@ -2,8 +2,9 @@
 
 require('flow-remove-types/register');
 const expressionSuite = require('./integration').expression;
-const compileExpression = require('../src/style-spec/function/compile');
-const { toString } = require('../src/style-spec/function/types');
+const { createPropertyExpression } = require('../src/style-spec/expression');
+const { toString } = require('../src/style-spec/expression/types');
+const ignores = require('./ignores.json');
 
 let tests;
 
@@ -11,59 +12,60 @@ if (process.argv[1] === __filename && process.argv.length > 2) {
     tests = process.argv.slice(2);
 }
 
-expressionSuite.run('js', {tests: tests}, (fixture) => {
-    let type;
-    if (fixture.expectExpressionType) {
-        type = fixture.expectExpressionType;
+expressionSuite.run('js', { ignores, tests }, (fixture) => {
+    const spec = Object.assign({}, fixture.propertySpec);
+    spec['function'] = true;
+    spec['property-function'] = true;
+
+    let expression = createPropertyExpression(fixture.expression, spec, {handleErrors: false});
+    if (expression.result === 'error') {
+        return {
+            compiled: {
+                result: 'error',
+                errors: expression.value.map((err) => ({
+                    key: err.key,
+                    error: err.message
+                }))
+            }
+        };
     }
-    const compiled = compileExpression(fixture.expression, type);
 
+    expression = expression.value;
+
+    const type = expression._styleExpression.expression.type; // :scream:
+
+    const outputs = [];
     const result = {
-        compiled: {}
-    };
-    [
-        'result',
-        'functionSource',
-        'isFeatureConstant',
-        'isZoomConstant',
-        'errors'
-    ].forEach(key => {
-        if (compiled.hasOwnProperty(key)) {
-            result.compiled[key] = compiled[key];
+        outputs,
+        compiled: {
+            result: 'success',
+            isFeatureConstant: expression.kind === 'constant' || expression.kind === 'camera',
+            isZoomConstant: expression.kind === 'constant' || expression.kind === 'source',
+            type: toString(type)
         }
-    });
-    if (compiled.result === 'success') {
-        result.compiled.type = toString(compiled.expression.type);
+    };
 
-        const evaluate = fixture.inputs || [];
-        const evaluateResults = [];
-        for (const input of evaluate) {
-            try {
-                const feature = { properties: input[1].properties || {} };
-                if ('id' in input[1]) {
-                    feature.id = input[1].id;
-                }
-                if ('geometry' in input[1]) {
-                    feature.type = input[1].geometry.type;
-                }
-                const output = compiled.function(input[0], feature);
-                evaluateResults.push(output);
-            } catch (error) {
-                if (error.name === 'ExpressionEvaluationError') {
-                    evaluateResults.push({ error: error.toJSON() });
-                } else {
-                    evaluateResults.push({ error: error.message });
-                }
+    for (const input of fixture.inputs || []) {
+        try {
+            const feature = { properties: input[1].properties || {} };
+            if ('id' in input[1]) {
+                feature.id = input[1].id;
+            }
+            if ('geometry' in input[1]) {
+                feature.type = input[1].geometry.type;
+            }
+            let value = expression.evaluate(input[0], feature);
+            if (type.kind === 'color') {
+                value = [value.r, value.g, value.b, value.a];
+            }
+            outputs.push(value);
+        } catch (error) {
+            if (error.name === 'ExpressionEvaluationError') {
+                outputs.push({ error: error.toJSON() });
+            } else {
+                outputs.push({ error: error.message });
             }
         }
-        if (fixture.inputs) {
-            result.outputs = evaluateResults;
-        }
-    } else {
-        result.compiled.errors = result.compiled.errors.map((err) => ({
-            key: err.key,
-            error: err.message
-        }));
     }
 
     return result;

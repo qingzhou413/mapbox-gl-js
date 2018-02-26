@@ -7,15 +7,11 @@ const {RGBAImage} = require('../util/image');
 
 import type {StyleImage} from './style_image';
 import type {RequestTransformFunction} from '../ui/map';
+import type {Callback} from '../types/callback';
 
-module.exports = function(baseURL: ?string,
+module.exports = function(baseURL: string,
                           transformRequestCallback: RequestTransformFunction,
                           callback: Callback<{[string]: StyleImage}>) {
-    if (!baseURL) {
-        callback(null, {});
-        return;
-    }
-
     let json: any, image, error;
     const format = browser.devicePixelRatio > 1 ? '@2x' : '';
 
@@ -44,7 +40,7 @@ module.exports = function(baseURL: ?string,
 
             for (const id in json) {
                 const {width, height, x, y, sdf, pixelRatio} = json[id];
-                const data = RGBAImage.create({width, height});
+                const data = new RGBAImage({width, height});
                 RGBAImage.copy(imageData, data, {x, y}, {x: 0, y: 0}, {width, height});
                 result[id] = {data, pixelRatio, sdf};
             }

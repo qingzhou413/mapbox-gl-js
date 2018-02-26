@@ -1,5 +1,4 @@
 {
-  "expectExpressionType": null,
   "expression": ["downcase", "StRiNg"],
   "inputs": [[{}, {}]],
   "expected": {
@@ -7,8 +6,9 @@
       "result": "success",
       "isFeatureConstant": true,
       "isZoomConstant": true,
-      "type": "String"
+      "type": "string"
     },
-    "outputs": ["string"]
+    "outputs": ["string"],
+    "serialized": "string"
   }
 }

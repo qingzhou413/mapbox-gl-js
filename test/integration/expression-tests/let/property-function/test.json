@@ -1,5 +1,4 @@
 {
-  "expectExpressionType": null,
   "expression": ["let", "a", ["get", "x"], ["+", 1, ["number", ["var", "a"]]]],
   "inputs": [[{}, {"properties": {"x": 5}}]],
   "expected": {
@@ -7,8 +6,9 @@
       "result": "success",
       "isFeatureConstant": false,
       "isZoomConstant": true,
-      "type": "Number"
+      "type": "number"
     },
-    "outputs": [6]
+    "outputs": [6],
+    "serialized": ["let", "a", ["get", "x"], ["+", 1, ["number", ["var", "a"]]]]
   }
 }

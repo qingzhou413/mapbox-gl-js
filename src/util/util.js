@@ -4,6 +4,8 @@ const UnitBezier = require('@mapbox/unitbezier');
 const Coordinate = require('../geo/coordinate');
 const Point = require('@mapbox/point-geometry');
 
+import type {Callback} from '../types/callback';
+
 /**
  * @module util
  * @private
@@ -286,30 +288,7 @@ exports.filterObject = function(input: Object, iterator: Function, context?: Obj
     return output;
 };
 
-/**
- * Deeply compares two object literals.
- *
- * @private
- */
-exports.deepEqual = function(a: ?mixed, b: ?mixed): boolean {
-    if (Array.isArray(a)) {
-        if (!Array.isArray(b) || a.length !== b.length) return false;
-        for (let i = 0; i < a.length; i++) {
-            if (!exports.deepEqual(a[i], b[i])) return false;
-        }
-        return true;
-    }
-    if (typeof a === 'object' && a !== null && b !== null) {
-        if (!(typeof b === 'object')) return false;
-        const keys = Object.keys(a);
-        if (keys.length !== Object.keys(b).length) return false;
-        for (const key in a) {
-            if (!exports.deepEqual(a[key], b[key])) return false;
-        }
-        return true;
-    }
-    return a === b;
-};
+exports.deepEqual = require('../style-spec/util/deep_equal');
 
 /**
  * Deeply clones two objects.
@@ -356,6 +335,7 @@ exports.warnOnce = function(message: string): void {
 /**
  * Indicates if the provided Points are in a counter clockwise (true) or clockwise (false) order
  *
+ * @private
  * @returns true for a counter clockwise set of points
  */
 // http://bryceboe.com/2006/10/23/line-segment-intersection-algorithm/
@@ -368,6 +348,7 @@ exports.isCounterClockwise = function(a: Point, b: Point, c: Point): boolean {
  * have a clockwise winding.  Negative areas are interior rings and have a counter clockwise
  * ordering.
  *
+ * @private
  * @param ring Exterior or interior ring
  */
 exports.calculateSignedArea = function(ring: Array<Point>): number {
@@ -383,6 +364,7 @@ exports.calculateSignedArea = function(ring: Array<Point>): number {
 /**
  * Detects closed polygons, first + last point are equal
  *
+ * @private
  * @param points array of points
  * @return true if the points are a closed polygon
  */
@@ -407,14 +389,12 @@ exports.isClosedPolygon = function(points: Array<Point>): boolean {
 /**
  * Converts spherical coordinates to cartesian coordinates.
  *
+ * @private
  * @param spherical Spherical coordinates, in [radial, azimuthal, polar]
  * @return cartesian coordinates in [x, y, z]
  */
 
-exports.sphericalToCartesian = function(spherical: Array<number>): Array<number> {
-    const r = spherical[0];
-    let azimuthal = spherical[1],
-        polar = spherical[2];
+exports.sphericalToCartesian = function([r, azimuthal, polar]: [number, number, number]): {x: number, y: number, z: number} {
     // We abstract "north"/"up" (compass-wise) to be 0° when really this is 90° (π/2):
     // correct for that here
     azimuthal += 90;
@@ -423,17 +403,17 @@ exports.sphericalToCartesian = function(spherical: Array<number>): Array<number>
     azimuthal *= Math.PI / 180;
     polar *= Math.PI / 180;
 
-    // spherical to cartesian (x, y, z)
-    return [
-        r * Math.cos(azimuthal) * Math.sin(polar),
-        r * Math.sin(azimuthal) * Math.sin(polar),
-        r * Math.cos(polar)
-    ];
+    return {
+        x: r * Math.cos(azimuthal) * Math.sin(polar),
+        y: r * Math.sin(azimuthal) * Math.sin(polar),
+        z: r * Math.cos(polar)
+    };
 };
 
 /**
  * Parses data from 'Cache-Control' headers.
  *
+ * @private
  * @param cacheControl Value of 'Cache-Control' header
  * @return object containing parsed header info.
  */

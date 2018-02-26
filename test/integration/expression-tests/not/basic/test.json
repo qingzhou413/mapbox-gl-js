@@ -1,5 +1,4 @@
 {
-  "expectExpressionType": null,
   "expression": ["!", ["boolean", ["get", "x"]]],
   "inputs": [
     [{}, {"properties": {"x": true}}],
@@ -10,8 +9,9 @@
       "result": "success",
       "isFeatureConstant": false,
       "isZoomConstant": true,
-      "type": "Boolean"
+      "type": "boolean"
     },
-    "outputs": [false, true]
+    "outputs": [false, true],
+    "serialized": ["!", ["boolean", ["get", "x"]]]
   }
 }
