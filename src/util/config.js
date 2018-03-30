@@ -7,8 +7,8 @@ type Config = {|
 |};
 
 const config: Config = {
-    API_URL: 'https://api.mapbox.com',
-    REQUIRE_ACCESS_TOKEN: true,
+    API_URL: 'https://api.unimap.io',
+    REQUIRE_ACCESS_TOKEN: false,
     ACCESS_TOKEN: null
 };
 
