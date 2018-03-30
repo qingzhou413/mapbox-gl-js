@@ -58,9 +58,92 @@ class AJAXError extends Error {
     }
 }
 
-function makeRequest(requestParameters: RequestParameters): XMLHttpRequest {
-    const xhr: XMLHttpRequest = new window.XMLHttpRequest();
+// class MockXMLHttpRequest extends window.XMLHttpRequest {
+//     _url: string;
+//     _response: any;
 
+//     send() {
+//         if (this._response) {
+//             this.status = 200;
+//             this.response = this._response;
+//         } else {
+//             this.status = 404;
+//             this.statusText = `${this._url} mock data is error!`;
+//         }
+//         const onload = this.onload;
+//         (onload: Function).call(this);
+//     }
+// }
+
+class MockXMLHttpRequest {
+    _url: string;
+    _response: any;
+    _withCredentials: string;
+    _onloadCallback: Function;
+    _statusText: string;
+    _status: number;
+
+    constructor(url, response) {
+        this._url = url;
+        this._response = response;
+    }
+
+    set withCredentials(withCredentials: string) {
+        this._withCredentials = withCredentials;
+    }
+
+    get statusText() {
+        return this._statusText;
+    }
+
+    get status() {
+        return this._status;
+    }
+
+    get response() {
+        return this._response;
+    }
+
+    onerror() {
+    }
+
+    open() {
+    }
+
+    setRequestHeader() {
+    }
+
+    set onload(callback: Function) {
+        this._onloadCallback = callback;
+    }
+
+    send() {
+        if (this._response) {
+            this._status = 200;
+        } else {
+            this._status = 404;
+            this._statusText = `${this._url} mock data is error!`;
+        }
+        const onload = this._onloadCallback;
+        (onload: Function).call(this);
+    }
+}
+
+let mockRequest: Object = {
+};
+
+function makeRequest(requestParameters: RequestParameters): XMLHttpRequest {
+    const url = new window.URL(requestParameters.url);
+    const hostName = url.hostname;
+    const pathName = url.pathname;
+    const hostMock = mockRequest[hostName];
+
+    let xhr;
+    if (hostMock && hostMock[pathName]) {
+        xhr = (new MockXMLHttpRequest(requestParameters.url, hostMock[pathName]): XMLHttpRequest);
+    } else {
+        xhr = new window.XMLHttpRequest();
+    }
     xhr.open('GET', requestParameters.url, true);
     for (const k in requestParameters.headers) {
         xhr.setRequestHeader(k, requestParameters.headers[k]);
@@ -68,6 +151,10 @@ function makeRequest(requestParameters: RequestParameters): XMLHttpRequest {
     xhr.withCredentials = requestParameters.credentials === 'include';
     return xhr;
 }
+
+exports.setMockRequest = function(mock: Object) {
+    mockRequest = mock;
+};
 
 exports.getJSON = function(requestParameters: RequestParameters, callback: Callback<mixed>) {
     const xhr = makeRequest(requestParameters);
