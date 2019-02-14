@@ -1,8 +1,8 @@
 {
-  "name": "@unimap/mapbox-gl",
+  "name": "@mapcube/mapbox-gl",
   "description": "A WebGL interactive maps library",
   "version": "0.44.1",
-  "main": "dist/mapbox-gl-dev.js",
+  "main": "dist/mapbox-gl.js",
   "style": "dist/mapbox-gl.css",
   "license": "SEE LICENSE IN LICENSE.txt",
   "repository": {
