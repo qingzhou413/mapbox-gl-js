@@ -1603,7 +1603,7 @@ class Map extends Camera {
         if (extension) extension.loseContext();
         removeNode(this._canvasContainer);
         removeNode(this._controlContainer);
-        removeNode(this._missingCSSContainer);
+        //removeNode(this._missingCSSContainer);
         this._container.classList.remove('mapcube-map');
         this.fire(new Event('remove'));
     }
